@@ -1,0 +1,16 @@
+<launch>
+  <!-- <node name="lappyNode" pkg="joystick_fair" type="motorcontrol" output="screen"/> -->
+ 
+  <node respawn="true" pkg="joy" type="joy_node" name="turtle_joy" output="screen">    
+  	<param name="dev" type="string" value="/dev/input/js0" />
+    <param name="deadzone" value="0.05" />
+  </node> 
+
+  <node name="tilt_kinect" pkg="joystick_fair" type="tilt_kinect" output="screen"/>
+  
+  <node name="kinect_aux_node" pkg="kinect_aux" type="kinect_aux_node" output="screen"/>
+
+<!--   <node name="arduinoNode" pkg="rosserial_python" type="serial_node.py" required="true" output="screen">
+    <param name="port" value="/dev/ttyUSB0" />
+  </node> -->
+</launch>

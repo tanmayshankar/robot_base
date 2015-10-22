@@ -1,0 +1,23 @@
+<package>
+  <description brief="robot_base">
+
+     robot_base
+
+  </description>
+  <author>Tanmay</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/robot_base</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="std_msgs"/>
+  <depend package="geometry_msgs"/>
+  <depend package="nav_msgs"/>
+  <depend package="tf"/>
+  <depend package="tf2"/>
+  <depend package="tf2_ros"/>
+  <depend package="sensor_msgs"/>
+
+</package>
+
+

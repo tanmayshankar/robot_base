@@ -1,0 +1,183 @@
+<launch>
+   
+  <arg name="rviz"                    default="false" />
+  <arg name="rtabmapviz"              default="true" /> 
+  <!-- <arg name="rviz"                    default="true" /> -->
+  <!-- <arg name="rtabmapviz"              default="false" />  -->
+
+  <!-- <arg name="frame_id"                default="camera_link"/>    -->
+  <arg name="frame_id"                default="base_link"/>   
+  <arg name="time_threshold"          default="0"/>             
+  <arg name="optimize_from_last_node" default="false"/>         
+  <!-- <arg name="database_path"           default="~/buildMap/rtabmap.db"/> -->
+  <arg name="database_path"           default="~/.ros/rtabmap.db"/>
+  <arg name="rtabmap_args"            default=""/>       
+   
+  <arg name="rgb_topic"               default="/camera/rgb/image_rect_color" />
+  <arg name="depth_registered_topic"  default="/camera/depth_registered/image_raw" />
+  <arg name="camera_info_topic"       default="/camera/rgb/camera_info" />
+   
+  <arg name="subscribe_scan"          default="true"/>        
+  <arg name="scan_topic"              default="/kinect_scan"/> 
+   
+  <arg name="namespace"               default="rtabmap"/>
+  <arg name="wait_for_transform"      default="true"/>
+    
+  <arg name="strategy"            default="0" />      
+  <arg name="feature"             default="6" />       
+  <arg name="nn"                  default="3" />      
+  <arg name="max_depth"           default="4.0" />     
+  <arg name="min_inliers"         default="20" />      
+  <arg name="inlier_distance"     default="0.02" />    
+  <arg name="local_map"           default="1000" />    
+  <arg name="odom_info_data"      default="true" />    
+                
+  <remap from="base_scan" to="/base_scan"/>
+  <remap from="map" to="/map"/>
+                
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+      <remap from="planner_cloud" to="/camera/depth_registered/points"/>
+      <remap from="odom" to="/rtabmap/odom"/>
+      <remap from="planner_goal" to="/move_base_simple/goal"/>
+      <rosparam file="$(find robot_base)/param_files/costmap_common_params.yaml" command="load" ns="global_costmap" />
+      <rosparam file="$(find robot_base)/param_files/costmap_common_params.yaml" command="load" ns="local_costmap" />
+      <rosparam file="$(find robot_base)/param_files/local_costmap_params.yaml" command="load" />
+      <rosparam file="$(find robot_base)/param_files/global_costmap_params.yaml" command="load" />
+      <rosparam file="$(find robot_base)/param_files/base_local_planner_params.yaml" command="load" />      
+  </node>
+    
+  <node pkg="nodelet" type="nodelet" name="obstacles_detection" args="load rtabmap_ros/obstacles_detection stereo_nodelet">
+      <remap from="cloud" to="/camera/depth_registered/points"/> 
+      <remap from="obstacles" to="/planner_cloud"/> 
+
+      <param name="frame_id" type="string" value="base_link"/>   
+      <param name="map_frame_id" type="string" value="map"/>
+      <param name="wait_for_transform" type="bool" value="true"/>
+      <param name="min_cluster_size" type="int" value="20"/>
+      <param name="max_obstacles_height" type="double" value="0.0"/>
+  </node>
+
+
+  <group ns="$(arg namespace)">
+  
+      <!-- Odometry -->
+      <node pkg="rtabmap_ros" type="rgbd_odometry" name="rgbd_odometry" output="screen">
+          <remap from="rgb/image"       to="$(arg rgb_topic)"/>
+          <remap from="depth/image"     to="$(arg depth_registered_topic)"/>
+          <remap from="rgb/camera_info" to="$(arg camera_info_topic)"/>
+    	  
+  	      <param name="frame_id"                 type="string" value="$(arg frame_id)"/>
+  	      <param name="wait_for_transform"       type="bool"   value="$(arg wait_for_transform)"/>
+       	  
+   	      <param name="Odom/Strategy"            type="string" value="$(arg strategy)"/> 
+  	      <param name="Odom/FeatureType"         type="string" value="$(arg feature)"/>  
+  	      <param name="OdomBow/NNType"           type="string" value="$(arg nn)"/>
+  	      <param name="Odom/MaxDepth"            type="string" value="$(arg max_depth)"/>  
+  	      <param name="Odom/MinInliers"          type="string" value="$(arg min_inliers)"/> 
+  	      <param name="Odom/InlierDistance"      type="string" value="$(arg inlier_distance)"/>       
+          <param name="OdomBow/LocalHistorySize" type="string" value="$(arg local_map)"/> 
+          <param name="Odom/FillInfoData"        type="string" value="$(arg odom_info_data)"/>   
+      </node>
+
+      <!-- Kinect cloud to laser scan -->
+      <node pkg="depthimage_to_laserscan" type="depthimage_to_laserscan" name="depthimage_to_laserscan">
+          <remap from="image"     to="/camera/depth_registered/image_raw"/>
+          <remap from="camera_info" to="/camera/depth_registered/camera_info"/>
+          <remap from="scan" to="/kinect_scan"/>
+          <param name="range_max" type="double" value="4"/>
+      </node>
+  
+
+    
+
+    <!-- Visual SLAM (robot side) -->
+      <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" >
+          <param name="subscribe_depth"    type="bool"   value="true"/>
+          <param name="subscribe_laserScan"     type="bool"   value="true"/>
+          <param name="frame_id"           type="string" value="$(arg frame_id)"/>
+  	      <param name="wait_for_transform" type="bool"   value="$(arg wait_for_transform)"/>
+  	      <param name="database_path"      type="string" value="$(arg database_path)"/>
+  	
+          <remap from="rgb/image"       to="$(arg rgb_topic)"/>
+          <remap from="depth/image"     to="$(arg depth_registered_topic)"/>
+          <remap from="rgb/camera_info" to="$(arg camera_info_topic)"/>
+          <remap from="scan" to="/kinect_scan"/>
+          <remap from="odom"            to="odom"/>
+
+          <param name="queue_size" type="int" value="10"/>
+          
+          <param name="RGBD/OptimizeFromGraphEnd" type="string" value="true"/>
+          <!-- RTAB-Map's parameters -->
+          <param name="Kp/MaxDepth" type="string" value="4.0"/>
+          <param name="LccIcp/Type" type="string" value="2"/>
+          <param name="LccIcp2/CorrespondenceRatio" type="string" value="0.5"/>
+          <param name="LccBow/MinInliers" type="string" value="3"/>
+          <param name="LccBow/InlierDistance" type="string" value="0.05"/>
+          <param name="RGBD/AngularUpdate" type="string" value="0.01"/>
+          <param name="RGBD/LinearUpdate" type="string" value="0.01"/>
+          <param name="Rtabmap/TimeThr" type="string" value="700"/>
+          <param name="Mem/RehearsalSimilarity" type="string" value="0.45"/>
+          
+      <!-- when 2D scan is set -->
+          <param if="$(arg subscribe_scan)" name="RGBD/OptimizeSlam2D"          type="string" value="true"/>
+          <param if="$(arg subscribe_scan)" name="RGBD/LocalLoopDetectionSpace" type="string" value="true"/>
+          <param if="$(arg subscribe_scan)" name="LccIcp/Type"                  type="string" value="2"/> 
+	        <param if="$(arg subscribe_scan)" name="LccIcp2/CorrespondenceRatio"  type="string" value="0.25"/>
+      </node>
+  
+    <!-- MapData oprimizer -->
+
+      <node pkg="rtabmap_ros" type="map_optimizer" name="map_optimizer"/>
+
+    <!-- Grid Builer -->
+      <node pkg="rtabmap_ros" type="map_assembler" name="map_assembler">
+          <param name="occupancy_grid" type="bool" value="true"/>
+          <remap from="mapData" to="mapData_optimized"/>
+          <remap from="grid_projection_map" to="/map"/> 
+      </node>
+
+
+    <!-- Visualisation RTAB-Map -->
+      <node if="$(arg rtabmapviz)" pkg="rtabmap_ros" type="rtabmapviz" name="rtabmapviz" args="-d $(find rtabmap_ros)/launch/config/rgbd_gui.ini" output="screen">
+          <param name="subscribe_depth"     type="bool"   value="true"/>
+          <param name="subscribe_scan"      type="bool"   value="$(arg subscribe_scan)"/>
+          <param name="subscribe_odom_info" type="bool"   value="$(arg odom_info_data)"/>
+          <param name="frame_id"            type="string" value="$(arg frame_id)"/>
+          <param name="wait_for_transform"  type="bool"   value="$(arg wait_for_transform)"/>
+        
+          <remap from="rgb/image"       to="$(arg rgb_topic)"/>
+          <remap from="depth/image"     to="$(arg depth_registered_topic)"/>
+          <remap from="rgb/camera_info" to="$(arg camera_info_topic)"/>
+          <remap from="scan"            to="$(arg scan_topic)"/>
+      </node>
+  
+  </group>
+  
+  <!-- Visualization RVIZ -->
+  <!-- <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(find rtabmap_ros)/launch/config/rgbd.rviz"/> -->
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(find robot_base)/launch/rviz_config.rviz"/>
+      <!-- sync cloud with odometry and voxelize the point cloud (for fast visualization in rviz) -->
+      <node if="$(arg rviz)" pkg="nodelet" type="nodelet" name="standalone_nodelet"  args="manager" output="screen"/>
+      <node if="$(arg rviz)" pkg="nodelet" type="nodelet" name="data_odom_sync" args="load rtabmap_ros/data_odom_sync standalone_nodelet">
+          <remap from="rgb/image_in"        to="$(arg rgb_topic)"/>
+          <remap from="depth/image_in"      to="$(arg depth_registered_topic)"/>
+          <remap from="rgb/camera_info_in"  to="$(arg camera_info_topic)"/>
+          <remap from="odom_in"             to="rtabmap/odom"/>
+          
+          <remap from="rgb/image_out"       to="data_odom_sync/image"/>
+          <remap from="depth/image_out"     to="data_odom_sync/depth"/>
+          <remap from="rgb/camera_info_out" to="data_odom_sync/camera_info"/>
+          <remap from="odom_out"            to="odom_sync"/>
+      </node>
+      
+      <node if="$(arg rviz)" pkg="nodelet" type="nodelet" name="points_xyzrgb" args="load rtabmap_ros/point_cloud_xyzrgb standalone_nodelet">
+          <remap from="rgb/image"       to="data_odom_sync/image"/>
+          <remap from="depth/image"     to="data_odom_sync/depth"/>
+          <remap from="rgb/camera_info" to="data_odom_sync/camera_info"/>
+          <remap from="cloud"           to="voxel_cloud" />
+
+          <param name="decimation" type="double" value="2"/>
+          <param name="voxel_size" type="double" value="0.02"/>
+      </node>
+
+</launch>

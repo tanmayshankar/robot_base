@@ -1,0 +1,43 @@
+obstacle_range: 2.5
+raytrace_range: 3.0
+#footprint: [[ 0.3,  0.3], [-0.3,  0.3], [-0.3, -0.3], [ 0.3, -0.3]]
+#footprint_padding: 0.03
+robot_radius: 0.15
+inflation_radius: 0.9
+map_type: costmap
+transform_tolerance: 1
+
+controller_patience: 2.0
+
+# recovery_behaviors: [
+#     {name: conservative_clear, type: clear_costmap_recovery/ClearCostmapRecovery},
+#     {name: aggressive_clear, type: clear_costmap_recovery/ClearCostmapRecovery}
+# ]
+
+# conservative_clear: 
+#     reset_distance: 3.00
+# aggressive_clear:
+#     reset_distance: 1.84
+
+observation_sources: laser_sensor point_sensor
+
+  # assuming receiving a cloud from rtabmap_ros/obstacles_detection node
+laser_sensor: {
+  sensor_frame: camera_link,
+  data_type: LaserScan, 
+  topic: /kinect_scan, 
+  expected_update_rate: 5.0, 
+  marking: true, 
+  clearing: true,
+  min_obstacle_height: -99999.0,
+  max_obstacle_height: 99999.0}
+
+point_sensor: {
+  sensor_frame: camera_link,
+  data_type: PointCloud2, 
+  topic: /camera/depth_registered/points, 
+  expected_update_rate: 5.0, 
+  marking: true, 
+  clearing: true,
+  min_obstacle_height: -99999.0,
+  max_obstacle_height: 99999.0}
